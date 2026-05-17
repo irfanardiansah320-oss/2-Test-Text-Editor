@@ -135,9 +135,9 @@ void handleCursorMovement(int ch,Cursor *cur)
  * =========================================================== */
 void findAndReplace() {
 
-    char filename[100];
-    char find[100];
-    char replace[100];
+    char filename[50];
+    char find[20];
+    char replace[20];
     char buffer[MAX_COLS];
 
     printf("\n=== FIND AND REPLACE ===\n");
@@ -147,7 +147,6 @@ void findAndReplace() {
     filename[strcspn(filename, "\n")] = '\0';
 
     FILE *fp = fopen(filename, "r");
-
     if (fp == NULL) {
         printf("File tidak ditemukan!\n");
         return;
@@ -161,15 +160,15 @@ void findAndReplace() {
     fgets(replace, sizeof(replace), stdin);
     replace[strcspn(replace, "\n")] = '\0';
 
-/* VALIDASI PANJANG REPLACE */
-
     if (strlen(replace) > 20) {
         printf("Peringatan! Kata pengganti maksimal 20 karakter.\n");
+        fclose(fp);
         return;
-}
+    }
 
     /* =========================
-       BUAT LINKED LIST MANUAL
+       BUAT LINKED LIST
+       pakai createNode() yang sudah ada
        ========================= */
 
     Node *head = NULL;
@@ -179,24 +178,24 @@ void findAndReplace() {
 
         buffer[strcspn(buffer, "\n")] = '\0';
 
-        Node *newNode = (Node *)malloc(sizeof(Node));
+        /* sebelum: 4 baris malloc manual */
+        /* sekarang: cukup 1 baris        */
+        Node *newNode = createNode(buffer);
 
-        strcpy(newNode->data, buffer);
-
-        newNode->next = NULL;
-        newNode->prev = NULL;
-
-        if (head == NULL) {
-
-            head = newNode;
-            tail = newNode;
+        /* createNode() sudah handle malloc gagal di dalamnya */
+        if (newNode == NULL) {
+            printf("Gagal alokasi memori!\n");
+            fclose(fp);
+            return;
         }
 
-        else {
-
-            tail->next = newNode;
-            newNode->prev = tail;
+        if (head == NULL) {
+            head = newNode;
             tail = newNode;
+        } else {
+            tail->next    = newNode;
+            newNode->prev = tail;
+            tail          = newNode;
         }
     }
 
@@ -207,38 +206,37 @@ void findAndReplace() {
        ========================= */
 
     int found = 0;
-
     Node *temp = head;
 
     while (temp != NULL) {
 
         char hasil[MAX_COLS * 2] = "";
-
         char *pos;
         char *start = temp->data;
 
         while ((pos = strstr(start, find)) != NULL) {
 
             found++;
-
             strncat(hasil, start, pos - start);
-
             strcat(hasil, replace);
-
             start = pos + strlen(find);
         }
 
         strcat(hasil, start);
-
         strcpy(temp->data, hasil);
-
         temp = temp->next;
     }
 
     if (found == 0) {
-
         printf("Kata tidak ditemukan!\n");
 
+        /* bebaskan memori sebelum return */
+        temp = head;
+        while (temp != NULL) {
+            Node *hapus = temp;
+            temp = temp->next;
+            free(hapus);
+        }
         return;
     }
 
@@ -247,27 +245,19 @@ void findAndReplace() {
        ========================= */
 
     fp = fopen(filename, "w");
-
     if (fp == NULL) {
         printf("Gagal membuka file!\n");
         return;
     }
 
     temp = head;
-
     while (temp != NULL) {
-
         fprintf(fp, "%s", temp->data);
-
-        if (temp->next != NULL) {
-            fprintf(fp, "\n");
-        }
-
+        if (temp->next != NULL) fprintf(fp, "\n");
         temp = temp->next;
     }
 
     fclose(fp);
-
     printf("Berhasil! %d kata diganti.\n", found);
 
     /* =========================
@@ -275,13 +265,9 @@ void findAndReplace() {
        ========================= */
 
     temp = head;
-
     while (temp != NULL) {
-
         Node *hapus = temp;
-
         temp = temp->next;
-
         free(hapus);
     }
 }
