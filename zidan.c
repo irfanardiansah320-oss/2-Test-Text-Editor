@@ -134,81 +134,154 @@ void handleCursorMovement(int ch,Cursor *cur)
  *  Tetap menggunakan file I/O biasa.
  * =========================================================== */
 void findAndReplace() {
+
     char filename[100];
-    char find[100], replace[100];
-    char buffer[1000];
-    char result[100000] = "";   /* buffer hasil lebih besar */
+    char find[100];
+    char replace[100];
+    char buffer[MAX_COLS];
 
-    printf("\n\033[1;36m=== FIND AND REPLACE ===\033[0m\n");
+    printf("\n=== FIND AND REPLACE ===\n");
 
-    printf("Masukkan nama file  : ");
+    printf("Masukkan nama file : ");
     fgets(filename, sizeof(filename), stdin);
     filename[strcspn(filename, "\n")] = '\0';
 
     FILE *fp = fopen(filename, "r");
+
     if (fp == NULL) {
-        printf("\033[1;31mFile '%s' tidak ditemukan!\033[0m\n", filename);
+        printf("File tidak ditemukan!\n");
         return;
     }
 
-    printf("Kata yang dicari    : ");
+    printf("Kata yang dicari : ");
     fgets(find, sizeof(find), stdin);
     find[strcspn(find, "\n")] = '\0';
 
-    if (strlen(find) == 0) {
-        printf("Input tidak boleh kosong!\n");
-        fclose(fp);
-        return;
-    }
-
-    printf("Kata pengganti      : ");
+    printf("Kata pengganti : ");
     fgets(replace, sizeof(replace), stdin);
     replace[strcspn(replace, "\n")] = '\0';
 
-    if (strlen(replace) > 50) {
-        printf("\n[!] Kata pengganti maksimal 50 karakter!\n");
-        fclose(fp);
+/* VALIDASI PANJANG REPLACE */
+
+    if (strlen(replace) > 20) {
+        printf("Peringatan! Kata pengganti maksimal 20 karakter.\n");
         return;
+}
+
+    /* =========================
+       BUAT LINKED LIST MANUAL
+       ========================= */
+
+    Node *head = NULL;
+    Node *tail = NULL;
+
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+
+        buffer[strcspn(buffer, "\n")] = '\0';
+
+        Node *newNode = (Node *)malloc(sizeof(Node));
+
+        strcpy(newNode->data, buffer);
+
+        newNode->next = NULL;
+        newNode->prev = NULL;
+
+        if (head == NULL) {
+
+            head = newNode;
+            tail = newNode;
+        }
+
+        else {
+
+            tail->next = newNode;
+            newNode->prev = tail;
+            tail = newNode;
+        }
     }
+
+    fclose(fp);
+
+    /* =========================
+       FIND AND REPLACE
+       ========================= */
 
     int found = 0;
 
-    while (fgets(buffer, sizeof(buffer), fp)) {
-        char temp[1000];
-        char *pos, *start = buffer;
+    Node *temp = head;
+
+    while (temp != NULL) {
+
+        char hasil[MAX_COLS * 2] = "";
+
+        char *pos;
+        char *start = temp->data;
 
         while ((pos = strstr(start, find)) != NULL) {
+
             found++;
 
-            /* salin bagian sebelum kata yang ditemukan */
-            strncpy(temp, start, pos - start);
-            temp[pos - start] = '\0';
+            strncat(hasil, start, pos - start);
 
-            strcat(result, temp);
-            strcat(result, replace);
+            strcat(hasil, replace);
 
             start = pos + strlen(find);
         }
-        /* salin sisa baris setelah penggantian terakhir */
-        strcat(result, start);
-    }
 
-    fclose(fp);
+        strcat(hasil, start);
+
+        strcpy(temp->data, hasil);
+
+        temp = temp->next;
+    }
 
     if (found == 0) {
-        printf("\033[1;33mKata '%s' tidak ditemukan dalam file!\033[0m\n", find);
+
+        printf("Kata tidak ditemukan!\n");
+
         return;
     }
+
+    /* =========================
+       SIMPAN KE FILE
+       ========================= */
 
     fp = fopen(filename, "w");
+
     if (fp == NULL) {
-        printf("Gagal membuka file untuk ditulis!\n");
+        printf("Gagal membuka file!\n");
         return;
     }
 
-    fputs(result, fp);
+    temp = head;
+
+    while (temp != NULL) {
+
+        fprintf(fp, "%s", temp->data);
+
+        if (temp->next != NULL) {
+            fprintf(fp, "\n");
+        }
+
+        temp = temp->next;
+    }
+
     fclose(fp);
 
-    printf("\033[1;32mBerhasil! %d kata '%s' diganti dengan '%s'.\033[0m\n",
-           found, find, replace);
+    printf("Berhasil! %d kata diganti.\n", found);
+
+    /* =========================
+       FREE MEMORY
+       ========================= */
+
+    temp = head;
+
+    while (temp != NULL) {
+
+        Node *hapus = temp;
+
+        temp = temp->next;
+
+        free(hapus);
+    }
 }
