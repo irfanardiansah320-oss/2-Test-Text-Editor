@@ -49,65 +49,80 @@
  *    75 = panah KIRI
  *    77 = panah KANAN
  * =========================================================== */
-void handleCursorMovement(int ch, Cursor *cur) {
-    int currentLen = (int)strlen(cur->current->data);
-
+void handleCursorMovement(int ch,Cursor *cur)
+{
+    // ATAS
     if (ch == 72) {
-        /* ---- PANAH ATAS ---- */
-        /* Syarat: harus ada baris di atas (prev != NULL) */
+
         if (cur->current->prev != NULL) {
-            cur->current = cur->current->prev;  /* ikuti pointer prev */
+
+            cur->current = cur->current->prev;
+
             cur->cursorRow--;
 
-            /* Clamp kolom: jika baris baru lebih pendek,
-             * cursor tidak boleh melewati akhir baris */
-            int newLen = (int)strlen(cur->current->data);
-            if (cur->cursorCol > newLen) {
-                cur->cursorCol = newLen;
+            int len = strlen(cur->current->data);
+
+            if (cur->cursorCol > len) {
+
+                cur->cursorCol = len;
             }
         }
     }
+
+    // BAWAH
     else if (ch == 80) {
-        /* ---- PANAH BAWAH ---- */
-        /* Syarat: harus ada baris di bawah (next != NULL) */
+
         if (cur->current->next != NULL) {
-            cur->current = cur->current->next;  /* ikuti pointer next */
+
+            cur->current = cur->current->next;
+
             cur->cursorRow++;
 
-            /* Clamp kolom */
-            int newLen = (int)strlen(cur->current->data);
-            if (cur->cursorCol > newLen) {
-                cur->cursorCol = newLen;
+            int len = strlen(cur->current->data);
+
+            if (cur->cursorCol > len) {
+
+                cur->cursorCol = len;
             }
         }
     }
+
+    // KIRI
     else if (ch == 75) {
-        /* ---- PANAH KIRI ---- */
+
         if (cur->cursorCol > 0) {
-            /* Masih ada karakter di kiri dalam baris yang sama */
+
             cur->cursorCol--;
         }
+
         else if (cur->current->prev != NULL) {
-            /* Sudah di kolom 0: pindah ke akhir baris SEBELUMNYA */
-            cur->current   = cur->current->prev;
+
+            cur->current = cur->current->prev;
+
             cur->cursorRow--;
-            cur->cursorCol = (int)strlen(cur->current->data);
+
+            cur->cursorCol = strlen(cur->current->data);
         }
-        /* Jika di baris pertama kolom 0: tidak bergerak */
     }
+
+    // KANAN
     else if (ch == 77) {
-        /* ---- PANAH KANAN ---- */
-        if (cur->cursorCol < currentLen) {
-            /* Masih ada karakter di kanan dalam baris yang sama */
+
+        int len = strlen(cur->current->data);
+
+        if (cur->cursorCol < len) {
+
             cur->cursorCol++;
         }
+
         else if (cur->current->next != NULL) {
-            /* Sudah di akhir baris: pindah ke awal baris BERIKUTNYA */
-            cur->current   = cur->current->next;
+
+            cur->current = cur->current->next;
+
             cur->cursorRow++;
+
             cur->cursorCol = 0;
         }
-        /* Jika di baris terakhir kolom akhir: tidak bergerak */
     }
 }
 
