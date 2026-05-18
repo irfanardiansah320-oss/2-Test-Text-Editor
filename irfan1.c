@@ -2,133 +2,162 @@
 #include <string.h>
 #include <stdlib.h>
 #include "irfan1.h"
-#include "edit_cursor.h"      // untuk fungsi runEditor, dll.
-#include "linkedlist.h"       // Node, MAX_COLS, createNode, appendNode, getNodeAt, freeList
+#include "edit_cursor.h"
+#include "linkedlist.h"
 
-// Fungsi pembantu lokal (insert & delete node di tengah)
-void insertNodeLocal(Node **head, int index, const char line[]) {
+// =========================
+// HELPER: INSERT NODE DI TENGAH
+// =========================
+static void insertNodeAt(Cursor *cursor, int index, const char line[]) {
     Node *newNode = createNode(line);
-    if (index == 0 || *head == NULL) {
-        newNode->next = *head;
-        *head = newNode;
+    if (newNode == NULL) return;
+
+    if (cursor->head == NULL || index == 0) {
+        newNode->next = cursor->head;
+        if (cursor->head != NULL) cursor->head->prev = newNode;
+        cursor->head = newNode;
+        cursor->rowCount++;
         return;
     }
-    Node *prev = getNodeAt(*head, index - 1);
-    if (prev == NULL) {
-        appendNode(head, line);
-        return;
+
+    // Cari node pada posisi index-1
+    Node *prev = cursor->head;
+    int i = 0;
+    while (prev->next != NULL && i < index - 1) {
+        prev = prev->next;
+        i++;
     }
+
     newNode->next = prev->next;
+    newNode->prev = prev;
+    if (prev->next != NULL) prev->next->prev = newNode;
     prev->next = newNode;
+    cursor->rowCount++;
 }
 
-void deleteNodeLocal(Node **head, int index) {
-    if (*head == NULL) return;
-    if (index == 0) {
-        Node *temp = *head;
-        *head = (*head)->next;
-        free(temp);
-        return;
+// =========================
+// HELPER: HAPUS NODE DI TENGAH
+// =========================
+static void deleteNodeAt(Cursor *cursor, int index) {
+    if (cursor->head == NULL) return;
+
+    Node *target = cursor->head;
+    int i = 0;
+    while (target != NULL && i < index) {
+        target = target->next;
+        i++;
     }
-    Node *prev = getNodeAt(*head, index - 1);
-    if (prev == NULL || prev->next == NULL) return;
-    Node *toDelete = prev->next;
-    prev->next = toDelete->next;
-    free(toDelete);
+    if (target == NULL) return;
+
+    if (target->prev != NULL) target->prev->next = target->next;
+    else cursor->head = target->next;
+
+    if (target->next != NULL) target->next->prev = target->prev;
+
+    free(target);
+    cursor->rowCount--;
 }
 
-// createNewFile & exitEditor (tidak berubah)
+// =========================
+// CREATE NEW FILE
+// =========================
 void createNewFile(void) {
     char filename[100];
-    Node *head = NULL;                // linked list kosong untuk dokumen baru
 
     printf("Masukkan Nama File : ");
     fgets(filename, sizeof(filename), stdin);
     filename[strcspn(filename, "\n")] = '\0';
-    
-    runEditor(&head, filename, 1);   // pastikan runEditor sudah pakai linked list
+
+    // Buat file kosong dulu agar bisa dibuka oleh runEditor
+    FILE *f = fopen(filename, "w");
+    if (f) fclose(f);
+
+    runEditor(filename);
     printf("File berhasil disimpan.\n");
 }
 
-void exitEditor() {
+// =========================
+// EXIT EDITOR
+// =========================
+void exitEditor(void) {
     printf("Terimakasih!\n");
     exit(0);
 }
 
-// handleTextEditing VERSI LINKED LIST (TANPA MAX_ROWS)
-void handleTextEditing(int ch, Node **head, int *cursorRow, int *cursorCol, int *rowCount) {
-    Node *curr = getNodeAt(*head, *cursorRow);
+// =========================
+// HANDLE TEXT EDITING
+// =========================
+void handleTextEditing(int ch, Cursor *cursor) {
+    Node *curr = cursor->current;
     if (curr == NULL) return;
 
-    //  BACKSPACE 
+    // BACKSPACE
     if (ch == 8) {
-        if (*cursorCol > 0) {
-            // hapus karakter di dalam baris
-            int len = strlen(curr->line);
-            if (*cursorCol <= len) {
-                for (int i = *cursorCol; i <= len; i++)
-                    curr->line[i-1] = curr->line[i];
-                (*cursorCol)--;
+        if (cursor->cursorCol > 0) {
+            // Hapus karakter di dalam baris
+            int len = strlen(curr->data);
+            if (cursor->cursorCol <= len) {
+                for (int i = cursor->cursorCol; i <= len; i++)
+                    curr->data[i - 1] = curr->data[i];
+                cursor->cursorCol--;
             }
-        }
-        else if (*cursorRow > 0) {
-            // gabung dengan baris sebelumnya
-            Node *prev = getNodeAt(*head, *cursorRow - 1);
+        } else if (cursor->cursorRow > 0) {
+            // Gabung dengan baris sebelumnya
+            Node *prev = curr->prev;
             if (prev == NULL) return;
 
-            // pastikan gabungan tidak melebihi kapasitas MAX_COLS
-            if (strlen(prev->line) + strlen(curr->line) < MAX_COLS) {
-                int prevLen = strlen(prev->line);
-                strcat(prev->line, curr->line);
-                deleteNodeLocal(head, *cursorRow);
-                (*cursorRow)--;
-                (*cursorCol) = prevLen;
-                (*rowCount)--;
-            } 
+            if (strlen(prev->data) + strlen(curr->data) < MAX_COLS) {
+                int prevLen = strlen(prev->data);
+                strcat(prev->data, curr->data);
+                deleteNodeAt(cursor, cursor->cursorRow);
+                cursor->cursorRow--;
+                cursor->current = prev;
+                cursor->cursorCol = prevLen;
+            }
         }
     }
 
-    // ENTER 
+    // ENTER
     else if (ch == 13) {
-        // TIDAK ADA PENGECEKAN MAX_ROWS! Linked list bisa terus tumbuh.
         char tail[MAX_COLS] = "";
-        if (*cursorCol < strlen(curr->line)) {
-            strcpy(tail, &curr->line[*cursorCol]);
+        if (cursor->cursorCol < (int)strlen(curr->data)) {
+            strcpy(tail, &curr->data[cursor->cursorCol]);
         }
-        curr->line[*cursorCol] = '\0';
+        curr->data[cursor->cursorCol] = '\0';
 
-        insertNodeLocal(head, *cursorRow + 1, tail);
-        (*cursorRow)++;
-        (*cursorCol) = 0;
-        (*rowCount)++;
+        insertNodeAt(cursor, cursor->cursorRow + 1, tail);
+
+        // Update current ke node baru
+        cursor->current = curr->next;
+        cursor->cursorRow++;
+        cursor->cursorCol = 0;
     }
 
     // KARAKTER BIASA (ASCII 32-126)
     else if (ch >= 32 && ch <= 126) {
         // Jika kolom mentok, buat baris baru (word-wrap)
-        if (*cursorCol >= MAX_COLS - 1) {
+        if (cursor->cursorCol >= MAX_COLS - 1) {
             char tail[MAX_COLS] = "";
-            if (*cursorCol < (int)strlen(curr->line)) {
-                strcpy(tail, &curr->line[*cursorCol]);
+            if (cursor->cursorCol < (int)strlen(curr->data)) {
+                strcpy(tail, &curr->data[cursor->cursorCol]);
             }
-            curr->line[*cursorCol] = '\0';
+            curr->data[cursor->cursorCol] = '\0';
 
-            insertNodeLocal(head, *cursorRow + 1, tail);
-            (*rowCount)++;
-            (*cursorRow)++;
-            *cursorCol = 0;
-
-            curr = getNodeAt(*head, *cursorRow);
+            insertNodeAt(cursor, cursor->cursorRow + 1, tail);
+            cursor->cursorRow++;
+            cursor->cursorCol = 0;
+            cursor->current = curr->next;
+            curr = cursor->current;
             if (curr == NULL) return;
         }
 
         // Sisipkan karakter di posisi kursor
-        int len = strlen(curr->line);
+        int len = strlen(curr->data);
         if (len < MAX_COLS - 1) {
-            for (int i = len; i >= *cursorCol; i--)
-                curr->line[i+1] = curr->line[i];
-            curr->line[*cursorCol] = ch;
-            (*cursorCol)++;
-        } 
+            for (int i = len; i >= cursor->cursorCol; i--)
+                curr->data[i + 1] = curr->data[i];
+            curr->data[cursor->cursorCol] = (char)ch;
+            cursor->cursorCol++;
+        }
     }
 }

@@ -4,7 +4,6 @@
 #include "linkedlist.h"
 
 void runEditor(const char *filename);
-void displayEditor(Cursor *cursor);
 void saveFile(Cursor *cursor, const char *filename);
 
 #endif
