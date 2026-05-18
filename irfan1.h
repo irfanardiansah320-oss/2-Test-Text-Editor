@@ -17,9 +17,7 @@ void runEditor(Node **head, const char *filename, int isNewFile);
 
 // Menangani editing teks (backspace, enter, karakter biasa)
 // ch: karakter yang ditekan
-// head: pointer ke head linked list
-// cursorRow, cursorCol: posisi kursor (akan diubah)
-// rowCount: jumlah baris saat ini (akan diubah)
-void handleTextEditing(int ch, Node **head, int *cursorRow, int *cursorCol, int *rowCount);
+// cursor: cursor editor dengan linked list dan posisi kursor
+void handleTextEditing(int ch, Cursor *cursor);
 
 #endif
