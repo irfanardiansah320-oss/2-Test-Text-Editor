@@ -48,26 +48,49 @@ void saveFile(Cursor *cursor, const char *filename) { // Fungsi dibuat oleh Irfa
 // =========================
 // RENDER LAYAR
 // =========================
-static void render(Cursor *cursor) {
-    /* 1. Pindah ke pojok kiri atas */
-    COORD topLeft = {0, 0};
-    SetConsoleCursorPosition(hConsole, topLeft);
+static void gotoxy(int x, int y) {
+    COORD coord;
+    coord.X = x;
+    coord.Y = y;
+    SetConsoleCursorPosition(hConsole, coord);
+}
 
-    /* 2. Traversal linked list: cetak setiap baris */
+static void render(Cursor *cursor) {
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    int screenWidth  = csbi.dwSize.X;
+    int screenHeight = csbi.dwSize.Y;
+
     Node *cur = cursor->head;
+    int row = 0;
+
     while (cur != NULL) {
-        printf("%s", cur->data);
-        printf("\x1b[K");           /* hapus sisa baris di layar */
-        if (cur->next != NULL) printf("\n");
+
+        gotoxy(0, row);              // pindah ke awal baris ini
+        printf("%s", cur->data);     // cetak isi baris
+
+        int textLen   = (int)strlen(cur->data);
+        int sisaKolom = screenWidth - textLen;
+
+        if (sisaKolom > 0) {
+            COORD pos = {(SHORT)textLen, (SHORT)row};
+            DWORD written;
+            FillConsoleOutputCharacter(hConsole, ' ', sisaKolom, pos, &written);
+        }
+
         cur = cur->next;
+        row++;
     }
 
-    /* 3. Hapus sisa layar di bawah baris terakhir */
-    printf("\x1b[J");
+    // Bersihkan baris di bawah konten
+    for (int r = row; r < screenHeight; r++) {
+        COORD baris = {0, (SHORT)r};
+        DWORD written;
+        FillConsoleOutputCharacter(hConsole, ' ', screenWidth, baris, &written);
+    }
 
-    /* 4. Kembalikan cursor konsol ke posisi kursor editor */
-    COORD pos = {(SHORT)cursor->cursorCol, (SHORT)cursor->cursorRow};
-    SetConsoleCursorPosition(hConsole, pos);
+    gotoxy(cursor->cursorCol, cursor->cursorRow);  // kembalikan kursor editor
 }
 
 // =========================
