@@ -5,9 +5,8 @@
 #include "edit_cursor.h"
 #include "linkedlist.h"
 
-// =========================
 // HELPER: INSERT NODE DI TENGAH
-// =========================
+
 static void insertNodeAt(Cursor *cursor, int index, const char line[]) {
     Node *newNode = createNode(line);
     if (newNode == NULL) return;
@@ -35,9 +34,7 @@ static void insertNodeAt(Cursor *cursor, int index, const char line[]) {
     cursor->rowCount++;
 }
 
-// =========================
 // HELPER: HAPUS NODE DI TENGAH
-// =========================
 static void deleteNodeAt(Cursor *cursor, int index) {
     if (cursor->head == NULL) return;
 
@@ -58,9 +55,7 @@ static void deleteNodeAt(Cursor *cursor, int index) {
     cursor->rowCount--;
 }
 
-// =========================
 // CREATE NEW FILE
-// =========================
 void createNewFile(void) {
     char filename[100];
 
@@ -76,17 +71,13 @@ void createNewFile(void) {
     printf("File berhasil disimpan.\n");
 }
 
-// =========================
 // EXIT EDITOR
-// =========================
 void exitEditor(void) {
     printf("Terimakasih!\n");
     exit(0);
 }
 
-// =========================
 // HANDLE TEXT EDITING
-// =========================
 void handleTextEditing(int ch, Cursor *cursor) {
     Node *curr = cursor->current;
     if (curr == NULL) return;
