@@ -48,27 +48,45 @@ void saveFile(Cursor *cursor, const char *filename) { // Fungsi dibuat oleh Irfa
 // =========================
 // RENDER LAYAR
 // =========================
-static void gotoxy(int x, int y) {
-    COORD coord;
-    coord.X = x;
-    coord.Y = y;
-    SetConsoleCursorPosition(hConsole, coord);
-}
-
 static void render(Cursor *cursor) {
 
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(hConsole, &csbi);
     int screenWidth  = csbi.dwSize.X;
-    int screenHeight = csbi.dwSize.Y;
+    int screenHeight = csbi.dwSize.Y - 1; // -1 biar aman dari baris terakhir terminal
 
+    // =============================================
+    // SCROLL OFFSET — ini kunci fix-nya
+    // Menyimpan baris mana yang tampil paling atas
+    // =============================================
+    static int scrollOffset = 0;
+
+    // Kalau kursor naik melebihi atas tampilan → geser tampilan ke atas
+    if (cursor->cursorRow < scrollOffset) {
+        scrollOffset = cursor->cursorRow;
+    }
+    // Kalau kursor turun melebihi bawah tampilan → geser tampilan ke bawah
+    if (cursor->cursorRow >= scrollOffset + screenHeight) {
+        scrollOffset = cursor->cursorRow - screenHeight + 1;
+    }
+
+    // =============================================
+    // Mulai traversal dari node di posisi scrollOffset
+    // (bukan dari head!)
+    // =============================================
     Node *cur = cursor->head;
+    int i = 0;
+    while (cur != NULL && i < scrollOffset) {
+        cur = cur->next;
+        i++;
+    }
+
+    // Cetak baris yang masuk dalam jendela tampilan
     int row = 0;
+    while (cur != NULL && row < screenHeight) {
 
-    while (cur != NULL) {
-
-        gotoxy(0, row);              // pindah ke awal baris ini
-        printf("%s", cur->data);     // cetak isi baris
+        gotoxy(0, row);
+        printf("%s", cur->data);
 
         int textLen   = (int)strlen(cur->data);
         int sisaKolom = screenWidth - textLen;
@@ -83,14 +101,19 @@ static void render(Cursor *cursor) {
         row++;
     }
 
-    // Bersihkan baris di bawah konten
+    // Bersihkan baris kosong di bawah konten
     for (int r = row; r < screenHeight; r++) {
         COORD baris = {0, (SHORT)r};
         DWORD written;
         FillConsoleOutputCharacter(hConsole, ' ', screenWidth, baris, &written);
     }
 
-    gotoxy(cursor->cursorCol, cursor->cursorRow);  // kembalikan kursor editor
+    // =============================================
+    // Kembalikan kursor ke posisi VISUAL
+    // bukan cursorRow mentah, tapi dikurangi scrollOffset
+    // =============================================
+    int visualRow = cursor->cursorRow - scrollOffset;
+    gotoxy(cursor->cursorCol, visualRow);
 }
 
 // =========================
