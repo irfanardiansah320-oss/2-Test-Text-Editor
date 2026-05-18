@@ -48,6 +48,12 @@ void saveFile(Cursor *cursor, const char *filename) { // Fungsi dibuat oleh Irfa
 // =========================
 // RENDER LAYAR
 // =========================
+static void gotoxy(int x, int y) {
+    COORD coord;
+    coord.X = x;
+    coord.Y = y;
+    SetConsoleCursorPosition(hConsole, coord);
+}
 static void render(Cursor *cursor) {
 
     CONSOLE_SCREEN_BUFFER_INFO csbi;
